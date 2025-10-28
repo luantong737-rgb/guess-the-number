@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>🎯 猜数字 | Guess The Number</title>
+  <style>
+    :root{
+      --bg:#0b1020;--card:#121a33;--muted:#8da2d3;--text:#eaf0ff;--accent:#6ea8fe;--accent2:#9dffb0;--warn:#ffb86b;--danger:#ff6b6b;
+      --ring: 0 0 0 3px rgba(110,168,254,.35);
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:radial-gradient(1200px 800px at 20% -10%,#1c2550,transparent),radial-gradient(1000px 600px at 120% 10%,#1f2b63,transparent),var(--bg);color:var(--text)}
+    .container{max-width:880px;margin:32px auto;padding:24px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.02));backdrop-filter:saturate(120%) blur(6px);border:1px solid rgba(255,255,255,.06);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:24px}
+    h1{font-size:clamp(22px,4vw,34px);margin:0 0 8px;letter-spacing:.5px}
+    .sub{color:var(--muted);margin-bottom:18px}
+    .grid{display:grid;grid-template-columns:1.2fr .8fr;gap:20px}
+    @media (max-width:800px){.grid{grid-template-columns:1fr}}
+
+    .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:10px 0 16px}
+    .seg{display:inline-flex;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:6px}
+    .seg button{appearance:none;border:0;background:transparent;color:var(--muted);padding:8px 12px;border-radius:10px;font-weight:600;cursor:pointer}
+    .seg button[aria-pressed="true"]{background:rgba(110,168,254,.15);color:#e9f2ff;box-shadow:inset 0 0 0 1px rgba(110,168,254,.5)}
+
+    .stat{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:14px}
+    .chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px dashed rgba(255,255,255,.12);border-radius:999px}
+
+    .panel{background:rgba(0,0,0,.16);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px}
+
+    label{font-size:13px;color:var(--muted)}
+    input[type=number]{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.2);color:var(--text);outline:none}
+    input[type=number]:focus{box-shadow:var(--ring);border-color:rgba(110,168,254,.6)}
+
+    .row{display:flex;gap:10px;margin-top:10px}
+    .btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:700;cursor:pointer;color:#0b1020}
+    .btn-primary{background:linear-gradient(180deg,#7fb6ff,#4d8dff)}
+    .btn-ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25)}
+    .btn-warning{background:linear-gradient(180deg,#ffd89e,#ffb86b)}
+    .btn-danger{background:linear-gradient(180deg,#ff9a9a,#ff6b6b)}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+
+    .feedback{margin-top:10px;min-height:28px;font-size:15px}
+    .feedback strong{font-weight:800}
+    .feedback .ok{color:var(--accent2)}
+    .feedback .hi{color:var(--warn)}
+    .feedback .lo{color:var(--accent)}
+    .feedback .bad{color:var(--danger)}
+
+    .history{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+    .tag{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);font-size:13px}
+
+    .scoreboard{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .score{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+    .score h4{margin:0 0 8px;font-size:14px;color:var(--muted)}
+
+    footer{margin-top:16px;color:var(--muted);font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card" role="main">
+      <h1>🎯 猜数字（Guess The Number）</h1>
+      <p class="sub">选择难度，开始游戏；输入数字后按 <kbd>Enter</kbd> 或点击“提交猜测”。系统会提示 <em>高/低</em>，用尽量少的次数猜中目标！</p>
+
+      <div class="grid">
+        <!-- 左侧：游戏面板 -->
+        <section class="panel" aria-labelledby="game-panel">
+          <h2 id="game-panel" style="margin-top:0;font-size:16px;color:var(--muted);">游戏</h2>
+
+          <!-- 难度选择 -->
+          <div class="controls" aria-label="选择难度">
+            <div class="seg" role="group" aria-label="难度切换">
+              <button id="d-easy"   data-diff="easy"   aria-pressed="true">🌱 简单</button>
+              <button id="d-normal" data-diff="normal" aria-pressed="false">🚀 标准</button>
+              <button id="d-hard"   data-diff="hard"   aria-pressed="false">🔥 困难</button>
+            </div>
+            <button id="start" class="btn btn-primary">开始新游戏</button>
+            <button id="reset" class="btn btn-ghost" disabled>重置</button>
+          </div>
+
+          <!-- 状态条 -->
+          <div class="stat">
+            <span class="chip">范围：<strong id="range-label">1 - 50</strong></span>
+            <span class="chip">剩余次数：<strong id="left">—</strong></span>
+            <span class="chip">已用次数：<strong id="used">—</strong></span>
+            <span class="chip">用时：<strong id="timer">00:00</strong></span>
+          </div>
+
+          <!-- 输入区域 -->
+          <div style="margin-top:12px">
+            <label for="guess">输入你的猜测：</label>
+            <input id="guess" type="number" inputmode="numeric" min="1" max="50" placeholder="例如：23" disabled aria-describedby="hint">
+            <div id="hint" class="feedback" aria-live="polite"></div>
+            <div class="row">
+              <button id="submit" class="btn btn-warning" disabled>提交猜测</button>
+              <button id="giveup" class="btn btn-danger" disabled>放弃本局</button>
+            </div>
+          </div>
+
+          <!-- 历史记录 -->
+          <div class="history" id="history" aria-label="历史猜测"></div>
+        </section>
+
+        <!-- 右侧：排行榜/规则 -->
+        <aside class="panel" aria-labelledby="side-panel">
+          <h2 id="side-panel" style="margin-top:0;font-size:16px;color:var(--muted);">记录 & 规则</h2>
+          <div class="scoreboard" id="scoreboard">
+            <!-- 动态渲染最佳成绩 -->
+          </div>
+          <ul style="margin:14px 0 0 18px;line-height:1.7;color:var(--muted)">
+            <li>正确范围内的有效输入才消耗一次机会。</li>
+            <li>提示：<span class="lo">偏低</span> / <span class="hi">偏高</span>；猜中显示 <span class="ok">✅ 正确</span>。</li>
+            <li>最佳记录比较：先比用次数，若相同再比用时。</li>
+            <li>按 <kbd>Enter</kbd> 快速提交猜测。</li>
+          </ul>
+        </aside>
+      </div>
+
+      <footer>Made with ❤️ 纯前端实现（支持离线运行，记录存储在本地浏览器）。</footer>
+    </div>
+  </div>
+
+  <script>
+    // --- 难度配置 ---
+    const DIFFS = {
+      easy:   { max: 50,  tries: 10 },
+      normal: { max: 100, tries: 8  },
+      hard:   { max: 500, tries: 10 }
+    };
+
+    // --- 元素引用 ---
+    const el = {
+      diffBtns: Array.from(document.querySelectorAll('.seg button')),
+      start: document.getElementById('start'),
+      reset: document.getElementById('reset'),
+      range: document.getElementById('range-label'),
+      left: document.getElementById('left'),
+      used: document.getElementById('used'),
+      timer: document.getElementById('timer'),
+      input: document.getElementById('guess'),
+      hint: document.getElementById('hint'),
+      submit: document.getElementById('submit'),
+      giveup: document.getElementById('giveup'),
+      history: document.getElementById('history'),
+      board: document.getElementById('scoreboard')
+    };
+
+    // --- 状态 ---
+    let state = {
+      diff: 'easy',
+      target: null,
+      max: DIFFS.easy.max,
+      left: 0,
+      used: 0,
+      startedAt: 0,
+      timerHandle: null,
+      guesses: []
+    };
+
+    // --- 本地记录键 ---
+    const LS_KEY = 'gtn.best.v1';
+
+    function loadBest(){
+      try{ return JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch{ return {}; }
+    }
+    function saveBest(best){ localStorage.setItem(LS_KEY, JSON.stringify(best)); }
+
+    function fmtTime(sec){
+      sec = Math.max(0, Math.floor(sec));
+      const m = String(Math.floor(sec/60)).padStart(2,'0');
+      const s = String(sec%60).padStart(2,'0');
+      return `${m}:${s}`;
+    }
+
+    function startTimer(){
+      stopTimer();
+      state.startedAt = Date.now();
+      el.timer.textContent = '00:00';
+      state.timerHandle = setInterval(()=>{
+        const elapsed = (Date.now()-state.startedAt)/1000;
+        el.timer.textContent = fmtTime(elapsed);
+      }, 250);
+    }
+    function stopTimer(){ if(state.timerHandle){ clearInterval(state.timerHandle); state.timerHandle=null; } }
+
+    function setDifficulty(diff){
+      state.diff = diff;
+      state.max = DIFFS[diff].max;
+      el.diffBtns.forEach(b=> b.setAttribute('aria-pressed', String(b.dataset.diff===diff)) );
+      el.range.textContent = `1 - ${state.max}`;
+      el.input.setAttribute('max', String(state.max));
+    }
+
+    function setUIPlaying(isPlaying){
+      el.input.disabled = !isPlaying;
+      el.submit.disabled = !isPlaying;
+      el.giveup.disabled = !isPlaying;
+      el.reset.disabled = false;
+      el.start.disabled = isPlaying;
+      if(isPlaying){ el.input.focus(); }
+    }
+
+    function newGame(){
+      const { tries } = DIFFS[state.diff];
+      state.target = 1 + Math.floor(Math.random()*state.max);
+      state.left = tries;
+      state.used = 0;
+      state.guesses = [];
+      el.left.textContent = tries;
+      el.used.textContent = 0;
+      el.history.innerHTML = '';
+      el.hint.innerHTML = '游戏已开始，祝你好运！';
+      el.input.value = '';
+      setUIPlaying(true);
+      startTimer();
+      // console.debug('Target:', state.target);
+    }
+
+    function endGame(win){
+      setUIPlaying(false);
+      stopTimer();
+      if(win){
+        const elapsed = Math.round((Date.now()-state.startedAt)/1000);
+        el.hint.innerHTML = `<strong class="ok">✅ 正确！</strong> 数字是 <strong>${state.target}</strong>。你用了 <strong>${state.used}</strong> 次，用时 <strong>${fmtTime(elapsed)}</strong>。`;
+        updateBest(state.diff, state.used, elapsed);
+      } else {
+        el.hint.innerHTML = `<strong class="bad">❌ 机会用尽</strong>，目标是 <strong>${state.target}</strong>。再试一次！`;
+      }
+      renderBoard();
+    }
+
+    function pushHistory(n){
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = String(n);
+      el.history.prepend(tag);
+    }
+
+    function makeGuess(){
+      const v = Number(el.input.value.trim());
+      if(!Number.isFinite(v)) { feedback('请输入有效数字', 'bad'); return; }
+      if(v < 1 || v > state.max){ feedback(`请输入范围内的数字（1 - ${state.max}）`, 'bad'); return; }
+
+      // 有效猜测才消耗机会
+      state.left -= 1;
+      state.used += 1;
+      el.left.textContent = state.left;
+      el.used.textContent = state.used;
+      state.guesses.push(v);
+      pushHistory(v);
+
+      if(v === state.target){ feedback('✅ 正确！', 'ok'); endGame(true); return; }
+      if(state.left <= 0){ feedback('机会用尽。', 'bad'); endGame(false); return; }
+
+      if(v < state.target){
+        const delta = state.target - v;
+        feedback(delta<=3 ? '有点低，但很接近！' : '偏低，再高一点。', 'lo');
+      } else {
+        const delta = v - state.target;
+        feedback(delta<=3 ? '有点高，但很接近！' : '偏高，再低一点。', 'hi');
+      }
+      el.input.select();
+    }
+
+    function feedback(text, cls){ el.hint.innerHTML = `<span class="${cls}">${text}</span>`; }
+
+    function giveUp(){
+      if(state.target==null) return;
+      el.hint.innerHTML = `本局已结束，正确答案是 <strong>${state.target}</strong>。`;
+      endGame(false);
+    }
+
+    function updateBest(diff, used, seconds){
+      const best = loadBest();
+      const prev = best[diff];
+      if(!prev || used < prev.used || (used===prev.used && seconds < prev.seconds)){
+        best[diff] = { used, seconds, at: new Date().toISOString() };
+        saveBest(best);
+      }
+    }
+
+    function renderBoard(){
+      const best = loadBest();
+      const rows = [
+        ['🌱 简单', 'easy'],
+        ['🚀 标准', 'normal'],
+        ['🔥 困难', 'hard']
+      ].map(([label,key])=>{
+        const b = best[key];
+        if(!b){
+          return `<div class="score"><h4>${label}</h4><div>暂无记录</div></div>`;
+        }
+        return `<div class="score"><h4>${label}</h4><div>最优次数：<strong>${b.used}</strong><br>最佳用时：<strong>${fmtTime(b.seconds)}</strong></div></div>`;
+      }).join('');
+      el.board.innerHTML = rows;
+    }
+
+    // --- 事件绑定 ---
+    el.diffBtns.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        setDifficulty(btn.dataset.diff);
+        // 未开始状态下更新输入最大值显示
+        el.range.textContent = `1 - ${state.max}`;
+        el.input.max = state.max;
+      })
+    });
+
+    el.start.addEventListener('click', ()=> newGame());
+    el.reset.addEventListener('click', ()=>{ stopTimer(); setUIPlaying(false); el.hint.innerHTML = '已重置，点击“开始新游戏”。'; el.left.textContent='—'; el.used.textContent='—'; el.timer.textContent='00:00'; el.history.innerHTML=''; });
+    el.submit.addEventListener('click', makeGuess);
+    el.giveup.addEventListener('click', giveUp);
+    el.input.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ makeGuess(); }});
+
+    // 初始渲染
+    setDifficulty('easy');
+    renderBoard();
+  </script>
+</body>
+</html>
